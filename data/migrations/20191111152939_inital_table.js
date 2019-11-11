@@ -1,0 +1,78 @@
+
+exports.up = function(knex) {
+    return knex.schema
+      .createTable('users', table => {
+        table.increments()
+        table.string('first_name').notNullable()
+        table.string('last_name').notNullable()
+        table.boolean('pro').defaultTo(false)
+        table
+          .string('user_id')
+          .notNullable()
+          .unique()
+        table
+          .datetime('created_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+        table
+          .datetime('updated_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+      })
+  
+      .createTable('forms', table => {
+        table.increments()
+        table
+          .integer('user_id')
+          .unsigned()
+          .notNullable()
+          .references('id')
+          .inTable('users')
+          .onDelete('CASCADE')
+          .onUpdate('CASCADE')
+        table.string('name')
+        table.integer('field_count').defaultTo(0)
+        table
+          .datetime('created_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+        table
+          .datetime('updated_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+      })
+  
+      .createTable('form_fields', table => {
+        table.increments()
+        table
+          .integer('form_id')
+          .unsigned()
+          .notNullable()
+          .references('id')
+          .inTable('forms')
+          .onDelete('CASCADE')
+          .onUpdate('CASCADE')
+        table.string('name').notNullable()
+        table
+          .datetime('created_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+        table
+          .datetime('updated_at')
+          .notNullable()
+          .defaultTo(knex.fn.now())
+      })
+      .raw(
+        ' CREATE OR REPLACE FUNCTION add_one() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE forms SET field_count = field_count + 1 WHERE id = NEW.form_id; RETURN NEW; END; $$; CREATE TRIGGER add AFTER INSERT ON form_fields FOR EACH ROW EXECUTE FUNCTION add_one();'
+      )
+      .raw(
+        ' CREATE OR REPLACE FUNCTION subtract_one() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE forms SET field_count = field_count - 1 WHERE id = OLD.form_id; RETURN NEW; END;  $$; CREATE TRIGGER subtract AFTER DELETE ON form_fields FOR EACH ROW EXECUTE FUNCTION subtract_one();'
+      )
+  }
+  
+  exports.down = function(knex) {
+    return knex.schema
+      .dropTableIfExists('form_fields')
+      .dropTableIfExists('forms')
+      .dropTableIfExists('users')
+  }
